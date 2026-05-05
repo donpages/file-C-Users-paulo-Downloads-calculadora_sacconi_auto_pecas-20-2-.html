@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora Sacconi</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0b1220;
+  color:#fff;
+}
+
+.container{
+  max-width:500px;
+  margin:auto;
+  padding:10px;
+}
+
+.card{
+  background:#1e293b;
+  padding:12px;
+  border-radius:14px;
+  margin-bottom:12px;
+}
+
+.titulo{
+  font-weight:bold;
+  margin-bottom:8px;
+}
+
+.cliente-box{
+  border:2px solid #facc15;
+}
+
+.cliente-btns{
+  display:flex;
+  gap:10px;
+}
+
+.cliente-btn{
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  font-weight:bold;
+  background:#374151;
+  color:#fff;
+}
+
+.cliente-btn.active{
+  background:#22c55e;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.btn{
+  width:100%;
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:0;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  color:#fff;
+  position:relative;
+  font-size:14px;
+}
+
+.red{background:#dc2626;}
+.blue{background:#2563eb;}
+.gray{background:#6b7280;}
+.darkgray{background:#4b5563;}
+
+.badge{
+  position:absolute;
+  top:5px;
+  right:5px;
+  background:yellow;
+  color:#000;
+  border-radius:50%;
+  padding:4px 7px;
+  font-size:12px;
+}
+
+.servicos{
+  display:grid;
+  grid-template-columns:1fr 40px 1fr 40px;
+  gap:8px;
+  align-items:center;
+}
+
+input{
+  padding:10px;
+  border-radius:10px;
+  border:none;
+}
+
+.add-btn{
+  background:#facc15;
+  border:none;
+  border-radius:10px;
+  height:40px;
+  font-weight:bold;
+}
+
+.item{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:5px;
+}
+
+.small-btn{
+  border:none;
+  border-radius:5px;
+  padding:4px 6px;
+  color:#fff;
+}
+
+.minus{background:red;}
+.plus{background:green;}
+
+.summary{font-weight:bold;}
+
+.inactive{
+  opacity:0.3;
+  pointer-events:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card cliente-box">
+  <div class="titulo">Tipo de Cliente</div>
+  <div class="cliente-btns">
+    <button id="civil" class="cliente-btn" onclick="setCliente('civil')">👤 Cidadão</button>
+    <button id="publico" class="cliente-btn" onclick="setCliente('publico')">👮 Servidor Público</button>
+  </div>
+</div>
+
+<div id="painel" class="inactive">
+
+<div class="card">
+  <div class="titulo">Produtos</div>
+  <div id="produtos" class="grid"></div>
+</div>
+
+<div class="card">
+  <div class="titulo">Serviços</div>
+  <div class="servicos">
+    <input id="tuning" placeholder="Tuning" oninput="formatarMoeda(this)">
+    <button class="add-btn" onclick="addServico('tuning')">+</button>
+    <input id="estetica" placeholder="Estética" oninput="formatarMoeda(this)">
+    <button class="add-btn" onclick="addServico('estetica')">+</button>
+  </div>
+</div>
+
+<div id="lista" class="card"></div>
+<div id="resumo" class="card summary"></div>
+
+<button class="btn" style="background:#000" onclick="zerarTudo()">Zerar Pedido</button>
+
+</div>
+
+</div>
+
+<script>
+let cliente = null;
+let carrinho = {};
+let custos = {};
+
+const produtos = {
+  avancado:{nome:"Kit Avançado", custo:500, civil:1500, publico:1000, classe:'red'},
+  basico:{nome:"Kit Básico", custo:1500, civil:3000, publico:2500, classe:'blue'},
+  chave:{nome:"Chave de Roda", custo:1000, civil:2000, publico:1500, classe:'gray'},
+  pneu:{nome:"Pneu", custo:1000, civil:2000, publico:1500, classe:'darkgray'}
+};
+
+function setCliente(tipo){
+  cliente = tipo;
+  document.getElementById('painel').classList.remove('inactive');
+  document.getElementById('civil').classList.remove('active');
+  document.getElementById('publico').classList.remove('active');
+  document.getElementById(tipo).classList.add('active');
+  zerarTudoInterno();
+}
+
+function zerarTudoInterno(){
+  carrinho = {};
+  custos = {};
+  atualizar();
+}
+
+function zerarTudo(){
+  carrinho = {};
+  custos = {};
+  cliente = null;
+  document.getElementById('painel').classList.add('inactive');
+  document.getElementById('civil').classList.remove('active');
+  document.getElementById('publico').classList.remove('active');
+  atualizar();
+}
+
+function renderProdutos(){
+  let html = '';
+  for(let key in produtos){
+    let p = produtos[key];
+    let qtd = carrinho[key] || 0;
+    html += `<div style="position:relative">
+      <button class="btn ${p.classe}" onclick="addProduto('${key}')">
+        ${p.nome}
+      </button>
+      ${qtd>0 ? `<span class='badge'>${qtd}</span>` : ''}
+    </div>`;
+  }
+  document.getElementById('produtos').innerHTML = html;
+}
+
+function addProduto(key){
+  if(!cliente) return;
+  carrinho[key] = (carrinho[key] || 0) + 1;
+  custos[key] = produtos[key].custo;
+  atualizar();
+}
+
+function remover(key){
+  if(carrinho[key]){
+    carrinho[key]--;
+    if(carrinho[key] <= 0) delete carrinho[key];
+    atualizar();
+  }
+}
+
+function addServico(tipo){
+  if(!cliente) return;
+  let input = document.getElementById(tipo);
+  let val = input.value.replace(/\D/g,'');
+  if(!val) return;
+
+  let key = tipo + Date.now();
+  carrinho[key] = parseInt(val);
+  custos[key] = tipo==='tuning' ? val*0.8 : val*0.5;
+
+  input.value = '';
+  atualizar();
+}
+
+function atualizar(){
+  renderProdutos();
+
+  let html = '';
+  let total = 0;
+  let custoTotal = 0;
+
+  for(let key in carrinho){
+    let val, nome;
+
+    if(produtos[key]){
+      val = produtos[key][cliente];
+      nome = produtos[key].nome;
+    } else {
+      val = carrinho[key];
+      nome = key.includes('tuning') ? 'Tuning' : 'Estética';
+    }
+
+    total += val * (produtos[key] ? carrinho[key] : 1);
+    custoTotal += custos[key] * (produtos[key] ? carrinho[key] : 1);
+
+    html += `<div class='item'>
+      ${nome}
+      <div>
+        <button class='small-btn minus' onclick="remover('${key}')">-</button>
+        <button class='small-btn plus' onclick="addProduto('${key}')">+</button>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('lista').innerHTML = html;
+
+  let lucro = total - custoTotal;
+
+  document.getElementById('resumo').innerHTML = `
+    Total: R$ ${total.toLocaleString('pt-BR')}<br>
+    Custo: R$ ${custoTotal.toLocaleString('pt-BR')}<br>
+    Lucro: R$ ${lucro.toLocaleString('pt-BR')}`;
+}
+
+function formatarMoeda(input){
+  let valor = input.value.replace(/\D/g,'');
+  if(valor===''){ input.value=''; return; }
+  valor = parseInt(valor).toLocaleString('pt-BR');
+  input.value = 'R$ ' + valor;
+}
+
+renderProdutos();
+</script>
+
+</body>
+</html>
